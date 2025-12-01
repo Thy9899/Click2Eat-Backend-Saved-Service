@@ -3,11 +3,11 @@ const express = require("express");
 const morgan = require("morgan");
 const connectDB = require("./src/util/db");
 const SavedRoutes = require("./src/routes/saved.route");
-// const cors = require("cors");
+const cors = require("cors");
 
 const app = express();
 
-// app.use(cors());
+app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
 
@@ -25,3 +25,4 @@ app.use("/api", SavedRoutes);
 
 const PORT = process.env.PORT || 5004;
 app.listen(PORT, () => console.log(`✅ Saved service running on port ${PORT}`));
+
