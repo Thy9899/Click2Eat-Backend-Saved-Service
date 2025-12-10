@@ -1,28 +1,63 @@
-require("dotenv").config();
+require("dotenv").config(); // Load environment variables from .env file
+
 const express = require("express");
 const morgan = require("morgan");
 const connectDB = require("./src/util/db");
-const SavedRoutes = require("./src/routes/saved.route");
+const adminRoutes = require("./src/routes/admin.route");
 const cors = require("cors");
 
 const app = express();
 
+/* ============================================================
+   CORS CONFIGURATION
+   ============================================================ */
+
+// Simple CORS (allows all origins)
 app.use(cors());
+
+// If you want to allow only your frontend, uncomment this:
+// app.use(
+//   cors({
+//     origin: "http://localhost:5173", // React/Vite frontend URL
+//     credentials: true,               // Allow cookies/auth headers
+//   })
+// );
+
+// Enable preflight for all routes
+// app.options(/.*/, cors());
+
+/* ============================================================
+   MIDDLEWARE
+   ============================================================ */
+
+// Parse incoming JSON from requests
 app.use(express.json());
+
+// Logger — prints request info (method, route, time)
 app.use(morgan("dev"));
 
-// Connect DB
-connectDB().catch((err) => {
-  console.error("❌ Failed to connect to MongoDB:", err);
-  process.exit(1);
-});
+/* ============================================================
+   CONNECT TO MONGODB
+   ============================================================ */
+connectDB();
 
-// Static images folder
+/* ============================================================
+   STATIC IMAGE FOLDER
+   ============================================================ */
+// Any image inside /public/Images can be accessed like:
+// http://localhost:5001/Images/example.png
 app.use("/Images", express.static("public/Images"));
 
-// Routes
-app.use("/api", SavedRoutes);
+/* ============================================================
+   ROUTES
+   ============================================================ */
 
-const PORT = process.env.PORT || 5004;
-app.listen(PORT, () => console.log(`✅ Saved service running on port ${PORT}`));
+// All admin-related API routes start with /api/admins
+app.use("/api/admins", adminRoutes);
 
+/* ============================================================
+   START SERVER
+   ============================================================ */
+
+const PORT = process.env.PORT || 5001;
+app.listen(PORT, () => console.log(`✅ Admin service running on port ${PORT}`));
