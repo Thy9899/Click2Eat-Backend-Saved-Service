@@ -2,10 +2,6 @@ const mongoose = require("mongoose");
 
 const SavedSchema = new mongoose.Schema(
   {
-    // saved_id: {
-    //   type: Number,
-    //   required: true,
-    // },
     customer_id: {
       type: String,
       required: true,
@@ -32,6 +28,10 @@ const SavedSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    image_public_id: {
+      type: String,
+      default: null,
+    }, // Cloudinary deletion ID
   },
   {
     timestamps: { createdAt: "createdAt", updatedAt: false },

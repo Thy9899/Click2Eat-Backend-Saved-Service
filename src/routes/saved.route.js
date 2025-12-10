@@ -2,19 +2,14 @@ const express = require("express");
 const multer = require("multer");
 const savedController = require("../controller/saved.controller");
 const authenticateToken = require("../middleware/authMiddleware");
-const path = require("path");
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "./public/Images"),
-  filename: (req, file, cb) => cb(null, `${Date.now()}_${file.originalname}`),
-});
-
-const upload = multer({ storage });
 
 const router = express.Router();
 
+// Use memory storage (no physical file created)
+const upload = multer({ storage: multer.memoryStorage() });
+
 // GET all
-router.get("/saved", authenticateToken, savedController.GetAll);
+router.get("/saved", authenticateToken, savedController.getAll);
 
 // CREATE
 router.post(

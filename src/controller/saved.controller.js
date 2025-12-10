@@ -1,38 +1,35 @@
 const Saved = require("../models/saved.model");
+const cloudinary = require("../config/saved.config");
+
+// Upload buffer to Cloudinary
+const uploadToCloudinary = (fileBuffer) => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader
+      .upload_stream({ folder: "saved_items" }, (error, result) => {
+        if (error) reject(error);
+        else resolve(result); // return full result including secure_url and public_id
+      })
+      .end(fileBuffer);
+  });
+};
 
 // ───────────────────────────────
 // GET ALL saved for one user
 // ───────────────────────────────
-// const GetAll = async (req, res) => {
-//   try {
-//     const customer_id = req.customer.customer_id;
-
-//     const list = await Saved.find({ customer_id }).sort({ _id: -1 });
-
-//     res.json({ success: true, list });
-//   } catch (err) {
-//     console.error("Error:", err);
-//     res.status(500).json({ error: "Internal server error" });
-//   }
-// };
-
-const GetAll = async (req, res) => {
+const getAll = async (req, res) => {
   try {
     const customer_id = req.customer.customer_id;
 
     const list = await Saved.find({ customer_id }).sort({ _id: -1 });
 
-    const normalized = list.map((item) => ({
-      saved_id: item._id.toString(),
-      customer_id: item.customer_id,
-      product_id: item.product_id,
-      name: item.name,
-      category: item.category,
-      price: item.price,
-      image: item.image,
-    }));
-
-    res.json({ success: true, list: normalized });
+    res.json({
+      success: true,
+      list: list.map((item) => ({
+        ...item._doc,
+        saved_id: item._id.toString(),
+        image: item.image ?? null,
+      })),
+    });
   } catch (err) {
     console.error("Error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -46,43 +43,38 @@ const create = async (req, res) => {
   try {
     const customer_id = req.customer.customer_id;
 
-    const { name, category, price, product_id } = req.body;
-    let image = null;
+    let imageUrl = null;
+    let imagePublicId = null;
 
-    // If uploaded file exists → use filename
     if (req.file) {
-      image = req.file.filename;
-    }
-    // If request contains a string URL for image
-    else if (req.body.image) {
-      image = req.body.image; // store external URL
-    }
-
-    if (!name || !category || !price) {
-      return res.status(400).json({ error: "All fields are required" });
+      const uploadResult = await uploadToCloudinary(req.file.buffer);
+      imageUrl = uploadResult.secure_url;
+      imagePublicId = uploadResult.public_id;
     }
 
     const savedItem = await Saved.create({
       customer_id,
-      product_id,
-      name,
-      category,
-      price,
-      image,
+      product_id: req.body.product_id || "",
+      name: req.body.name,
+      category: req.body.category,
+      price: Number(req.body.price),
+      image: imageUrl,
+      image_public_id: imagePublicId,
     });
 
+    // Return a clean response for frontend
     res.status(201).json({
       success: true,
       saved_id: savedItem._id.toString(),
-      customer_id,
-      product_id,
+      customer_id: savedItem.customer_id,
+      product_id: savedItem.product_id,
       name: savedItem.name,
       category: savedItem.category,
       price: savedItem.price,
-      image: savedItem.image,
+      image: savedItem.image ?? null,
     });
   } catch (err) {
-    console.error("Error creating saved:", err);
+    console.error("Error creating saved item:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -98,11 +90,13 @@ const update = async (req, res) => {
     const updateData = {
       name: req.body.name,
       category: req.body.category,
-      price: req.body.price,
+      price: Number(req.body.price),
     };
 
     if (req.file) {
-      updateData.image = req.file.filename;
+      const uploadResult = await uploadToCloudinary(req.file.buffer);
+      updateData.image = uploadResult.secure_url;
+      updateData.image_public_id = uploadResult.public_id;
     }
 
     const updated = await Saved.findOneAndUpdate(
@@ -115,9 +109,18 @@ const update = async (req, res) => {
       return res.status(404).json({ error: "Item not found or unauthorized" });
     }
 
-    res.json({ success: true, updated });
+    res.json({
+      success: true,
+      saved_id: updated._id.toString(),
+      customer_id: updated.customer_id,
+      product_id: updated.product_id,
+      name: updated.name,
+      category: updated.category,
+      price: updated.price,
+      image: updated.image ?? null,
+    });
   } catch (err) {
-    console.error("Error updating:", err);
+    console.error("Error updating saved item:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -136,11 +139,18 @@ const remove = async (req, res) => {
       return res.status(404).json({ error: "Item not found or unauthorized" });
     }
 
+    // Optional: Delete image from Cloudinary
+    if (deleted.image_public_id) {
+      cloudinary.uploader.destroy(deleted.image_public_id, (err, result) => {
+        if (err) console.error("Cloudinary delete error:", err);
+      });
+    }
+
     res.json({ success: true, deletedId: id });
   } catch (err) {
-    console.error("Error deleting:", err);
+    console.error("Error deleting saved item:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
-module.exports = { GetAll, create, update, remove };
+module.exports = { getAll, create, update, remove };

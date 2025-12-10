@@ -8,14 +8,14 @@ const authenticateToken = (req, res, next) => {
     return res.status(401).json({ success: false, message: "Token missing" });
   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, JWT_SECRET, (err, customer) => {
     if (err) {
       return res
         .status(403)
         .json({ success: false, message: "Invalid or expired token" });
     }
 
-    req.user = user;
+    req.customer = customer;
     next();
   });
 };
